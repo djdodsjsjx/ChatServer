@@ -32,6 +32,7 @@ void ChatServer::start() {
 void ChatServer::onConnection(const TcpConnectionPtr& conn) {
     // 客户端断开连接
     if (!conn->connected()) {
+        ChatService::instance()->clientCloseExceptionHandler(conn);  // 更新用户的在线状态
         conn->shutdown();
     }
 }

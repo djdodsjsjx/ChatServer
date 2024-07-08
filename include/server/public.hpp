@@ -3,8 +3,10 @@
 
 // server和client的公共头文件
 enum EnMsgType {
-    LOGIN_MSG = 1000,  // 登录消息
-    RETISTER_MSG,      // 注册消息
+    REGISTER_MSG = 1000,   // 注册消息
+    REGISTER_MSG_ACK,      // 注册相应消息
+    LOGIN_MSG,             // 登录消息
+    LOGIN_MSG_ACK,         // 登录相应消息
 };
 
 #endif // !__PROTOCOL_H__

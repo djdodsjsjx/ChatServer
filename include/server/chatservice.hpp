@@ -4,7 +4,10 @@
 #include <muduo/net/TcpConnection.h>
 #include <unordered_map>
 #include <functional>
+#include <mutex>
 #include "json.hpp"
+#include "usermodel.hpp"
+
 
 using json = nlohmann::json;
 using namespace muduo;
@@ -28,14 +31,24 @@ public:
     void registerHandler(const TcpConnectionPtr& conn, json& js, Timestamp time);
 
     MsgHandler getHandler(int msgId);
+    
+    // 服务器异常退出处理
+    void reset(); 
 
+    // 客户端异常退出处理
+    void clientCloseExceptionHandler(const TcpConnectionPtr& conn);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
     ChatService& operator=(const ChatService&) = delete;
     
     // 存储消息id和其对应的业务处理方法
-    std::unordered_map<int, MsgHandler> _msgHandlerMap;
+    unordered_map<int, MsgHandler> _msgHandlerMap;
+    // 互斥锁
+    mutex _connMutex;  
+    // 用户id和对应的通信连接
+    unordered_map<int, TcpConnectionPtr> _userConnMap;
+    UserModel _userModel;
     
 };
 #endif // !CHATSERVICE_H
