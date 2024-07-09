@@ -8,6 +8,7 @@
 #include "json.hpp"
 #include "usermodel.hpp"
 #include "offlinemessagemodel.hpp"
+#include "friendmodel.hpp"
 
 using json = nlohmann::json;
 using namespace muduo;
@@ -40,6 +41,9 @@ public:
 
     // 一对一聊天处理
     void oneChatHandler(const TcpConnectionPtr& conn, json& js, Timestamp time);
+
+    // 添加好友处理
+    void addFriendHandler(const TcpConnectionPtr& conn, json& js, Timestamp time);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
@@ -53,5 +57,6 @@ private:
     unordered_map<int, TcpConnectionPtr> _userConnMap;
     UserModel _userModel;
     OfflineMsgModel _offlineMsgModel;
+    FriendModel _friendModel;
 };
 #endif // !CHATSERVICE_H

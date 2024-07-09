@@ -12,6 +12,7 @@ ChatService::ChatService() {
     _msgHandlerMap.insert({LOGIN_MSG, std::bind(&ChatService::loginHandler, this, _1, _2, _3)});
     _msgHandlerMap.insert({REGISTER_MSG, std::bind(&ChatService::registerHandler, this, _1, _2, _3)});
     _msgHandlerMap.insert({ONE_CHAT_MSG, std::bind(&ChatService::oneChatHandler, this, _1, _2, _3)});
+    _msgHandlerMap.insert({ADD_FRIEND_MSG, std::bind(&ChatService::addFriendHandler, this, _1, _2, _3)});
 }
 
 // {"msgId":1002,"id":23,"password":"123456"}
@@ -48,6 +49,20 @@ void ChatService::loginHandler(const TcpConnectionPtr& conn, json& js, Timestamp
                 _offlineMsgModel.remove(id);
             } else {
                 LOG_INFO << "none offlinemsg";
+            }
+
+            vector<User> userVec = _friendModel.query(id);
+            LOG_INFO << userVec.size();
+            if (!userVec.empty()) {
+                vector<string> tmp;
+                for (auto& user : userVec) {
+                    json js;
+                    js["id"] = user.getId();
+                    js["name"] = user.getName();
+                    js["state"] = user.getState();
+                    tmp.push_back(js.dump());
+                }
+                response["friends"] = tmp;
             }
         }
     } else {
@@ -129,4 +144,13 @@ void ChatService::oneChatHandler(const TcpConnectionPtr& conn, json& js, Timesta
     }
 
     _offlineMsgModel.insert(toId, js.dump());
+}
+
+// {"msgId":1005,"id":22,"friendId":23,"msg":"add friend"}
+void ChatService::addFriendHandler(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int userId = js["id"].get<int>();
+    int friendId = js["friendId"].get<int>();
+    
+    // 存储好友信息
+    _friendModel.insert(userId, friendId);
 }
