@@ -11,9 +11,10 @@ ChatService::ChatService() {
     // 对各类消息处理方法的注册
     _msgHandlerMap.insert({LOGIN_MSG, std::bind(&ChatService::loginHandler, this, _1, _2, _3)});
     _msgHandlerMap.insert({REGISTER_MSG, std::bind(&ChatService::registerHandler, this, _1, _2, _3)});
+    _msgHandlerMap.insert({ONE_CHAT_MSG, std::bind(&ChatService::oneChatHandler, this, _1, _2, _3)});
 }
 
-// {"msgId":1002,"id":22,"password":"123456"}
+// {"msgId":1002,"id":23,"password":"123456"}
 void ChatService::loginHandler(const TcpConnectionPtr& conn, json& js, Timestamp time) {
     LOG_INFO << "do login service!";
     
@@ -39,6 +40,15 @@ void ChatService::loginHandler(const TcpConnectionPtr& conn, json& js, Timestamp
             response["errno"] = 0;
             response["id"] = user.getId();
             response["name"] = user.getName();
+
+            // 查询该用户是否存在离线消息
+            vector<string> vec = _offlineMsgModel.query(id);
+            if (!vec.empty()) {
+                response["offlinemsg"] = vec;
+                _offlineMsgModel.remove(id);
+            } else {
+                LOG_INFO << "none offlinemsg";
+            }
         }
     } else {
         response["errno"] = 3;
@@ -67,7 +77,7 @@ void ChatService::registerHandler(const TcpConnectionPtr& conn, json& js, Timest
         response["errno"] = 1;
         LOG_INFO << "insert fail!";
     }
-    // conn->send(response.dump());
+    conn->send(response.dump());
 }
 
 MsgHandler ChatService::getHandler(int msgId) {
@@ -103,4 +113,20 @@ void ChatService::clientCloseExceptionHandler(const TcpConnectionPtr& conn) {
         _userModel.updateState(user);  // 更新数据库
     }
     
+}
+
+// {"msgId":1004,"fromid":22,"toid":23,"msg":"hello"}
+void ChatService::oneChatHandler(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int toId = js["toid"].get<int>();  // 获取转发Id
+    
+    {
+        lock_guard<mutex> lock(_connMutex);
+        auto it = _userConnMap.find(toId);
+        if (it != _userConnMap.end()) {  // 若该用户在线直接转发
+            it->second->send(js.dump());
+            return ;
+        }
+    }
+
+    _offlineMsgModel.insert(toId, js.dump());
 }

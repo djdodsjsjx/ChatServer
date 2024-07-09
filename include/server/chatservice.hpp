@@ -7,7 +7,7 @@
 #include <mutex>
 #include "json.hpp"
 #include "usermodel.hpp"
-
+#include "offlinemessagemodel.hpp"
 
 using json = nlohmann::json;
 using namespace muduo;
@@ -37,6 +37,9 @@ public:
 
     // 客户端异常退出处理
     void clientCloseExceptionHandler(const TcpConnectionPtr& conn);
+
+    // 一对一聊天处理
+    void oneChatHandler(const TcpConnectionPtr& conn, json& js, Timestamp time);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
@@ -49,6 +52,6 @@ private:
     // 用户id和对应的通信连接
     unordered_map<int, TcpConnectionPtr> _userConnMap;
     UserModel _userModel;
-    
+    OfflineMsgModel _offlineMsgModel;
 };
 #endif // !CHATSERVICE_H
