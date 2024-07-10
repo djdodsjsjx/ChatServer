@@ -9,6 +9,7 @@
 #include "usermodel.hpp"
 #include "offlinemessagemodel.hpp"
 #include "friendmodel.hpp"
+#include "group_model.hpp"
 
 using json = nlohmann::json;
 using namespace muduo;
@@ -44,6 +45,13 @@ public:
 
     // 添加好友处理
     void addFriendHandler(const TcpConnectionPtr& conn, json& js, Timestamp time);
+
+    // 创建群组
+    void createGroup(const TcpConnectionPtr& conn, json& js, Timestamp time);
+    // 加入群组
+    void addGroup(const TcpConnectionPtr& conn, json& js, Timestamp time);
+    // 群组聊天
+    void groupChat(const TcpConnectionPtr& conn, json& js, Timestamp time);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
@@ -58,5 +66,6 @@ private:
     UserModel _userModel;
     OfflineMsgModel _offlineMsgModel;
     FriendModel _friendModel;
+    GroupModel _groupModel;
 };
 #endif // !CHATSERVICE_H

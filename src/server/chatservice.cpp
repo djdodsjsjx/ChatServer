@@ -13,6 +13,9 @@ ChatService::ChatService() {
     _msgHandlerMap.insert({REGISTER_MSG, std::bind(&ChatService::registerHandler, this, _1, _2, _3)});
     _msgHandlerMap.insert({ONE_CHAT_MSG, std::bind(&ChatService::oneChatHandler, this, _1, _2, _3)});
     _msgHandlerMap.insert({ADD_FRIEND_MSG, std::bind(&ChatService::addFriendHandler, this, _1, _2, _3)});
+    _msgHandlerMap.insert({CREATE_GROUP_MSG, std::bind(&ChatService::createGroup, this, _1, _2, _3)});
+    _msgHandlerMap.insert({ADD_GROUP_MSG, std::bind(&ChatService::addGroup, this, _1, _2, _3)});
+    _msgHandlerMap.insert({GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)});
 }
 
 // {"msgId":1002,"id":23,"password":"123456"}
@@ -153,4 +156,41 @@ void ChatService::addFriendHandler(const TcpConnectionPtr& conn, json& js, Times
     
     // 存储好友信息
     _friendModel.insert(userId, friendId);
+}
+
+// {"msgId":1006,"id":22,"groupname":"zhys","groupdesc":"zhy group"}
+void ChatService::createGroup(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int userId = js["id"].get<int>();
+    string name = js["groupname"];
+    string desc = js["groupdesc"];
+    
+    Group group(-1, name, desc);
+    if (_groupModel.createGroup(group)) {  // 创建成功，设置创建人
+        _groupModel.addGroup(userId, group.getId(), "creator");
+    }
+}
+
+// {"msgId":1007,"id":23,"groupid":3}
+void ChatService::addGroup(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int userId = js["id"].get<int>();
+    int groupId = js["groupid"].get<int>();
+    _groupModel.addGroup(userId, groupId, "normal");
+}
+
+// {"msgId":1008,"id":23,"groupid":3, "msg":"hello group"}
+void ChatService::groupChat(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int userId = js["id"].get<int>();
+    int groupId = js["groupid"].get<int>();
+    vector<int> userIdVec = _groupModel.queryGroupUsers(userId, groupId);  // 获取其他用户Id
+
+    lock_guard<mutex> lock(_connMutex);
+    for (int id : userIdVec) {
+        auto it = _userConnMap.find(id);
+        if (it != _userConnMap.end()) {  // 转发群消息
+            it->second->send(js.dump());
+        } else {
+            _offlineMsgModel.insert(id, js.dump());  // 不在线保存至离线消息中
+        }
+    }
+    
 }
