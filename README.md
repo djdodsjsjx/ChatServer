@@ -21,7 +21,7 @@ cd ../bin
 ./ChatServer 6000
 
 # 启动客户端
-telnet 127.0.0.1 6000
+./ChatClient 127.0.0.1 6000
 
 # 注册测试 {"msgId":1000,"name":"123","password":"123456"}
 # 登录测试 {"msgId":1002,"id":22,"password":"123456"}

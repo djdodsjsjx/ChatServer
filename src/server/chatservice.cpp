@@ -16,6 +16,7 @@ ChatService::ChatService() {
     _msgHandlerMap.insert({CREATE_GROUP_MSG, std::bind(&ChatService::createGroup, this, _1, _2, _3)});
     _msgHandlerMap.insert({ADD_GROUP_MSG, std::bind(&ChatService::addGroup, this, _1, _2, _3)});
     _msgHandlerMap.insert({GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)});
+    _msgHandlerMap.insert({LOGOUT_MSG, std::bind(&ChatService::logout, this, _1, _2, _3)});
 }
 
 // {"msgId":1002,"id":23,"password":"123456"}
@@ -192,5 +193,17 @@ void ChatService::groupChat(const TcpConnectionPtr& conn, json& js, Timestamp ti
             _offlineMsgModel.insert(id, js.dump());  // 不在线保存至离线消息中
         }
     }
-    
+}
+
+void ChatService::logout(const TcpConnectionPtr& conn, json& js, Timestamp time) {
+    int userId = js["id"].get<int>();
+    User user;
+    {
+        lock_guard<mutex> lock(_connMutex);
+        user.setId(userId);
+        _userConnMap.erase(userId);  // 删除该用户对应的通信连接
+    }
+
+    user.setState("offline");
+    _userModel.updateState(user);  // 更新数据库
 }

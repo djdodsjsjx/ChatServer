@@ -52,6 +52,8 @@ public:
     void addGroup(const TcpConnectionPtr& conn, json& js, Timestamp time);
     // 群组聊天
     void groupChat(const TcpConnectionPtr& conn, json& js, Timestamp time);
+    // 用户退出
+    void logout(const TcpConnectionPtr& conn, json& js, Timestamp time);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
