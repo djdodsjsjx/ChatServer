@@ -2,8 +2,22 @@
 在Ubuntu20环境下基于muduo开发的集群聊天服务器。目前实现用户注册和登录接口。
 
 ## 运行环境
-1. 安装[muduo库](https://github.com/chenshuo/muduo)
-
+1. 下载[muduo](https://github.com/chenshuo/muduo), [具体安装步骤](https://blog.csdn.net/QIANGWEIYUAN/article/details/89023980)
+2. 安装`MySQL`, [安装步骤](https://blog.csdn.net/m0_53721382/article/details/128943162)
+3. 下载[nginx](...), 安装步骤如下：
+   ```bash
+   # 解压
+   tar -axvf nginx-1.12.2.tar.gz
+   # 配置激活tcp负载均衡模块
+   sudo ./configure --with-stream
+   # 我运行上面语句缺少pcre库，因此先安装pcre库，重新配置
+   sudo apt-get install libpcre3-dev
+   sudo ./configure --with-stream
+   # 编译 在编译出现报错问题可以参考博客: https://blog.csdn.net/weixin_45525272/article/details/107794364
+   sudo make && sudo make install
+   # 编译完成后，默认安装在/usr/local/nginx目录，可执行文件在sbin目录里，配置文件在conf目录里
+   ```
+4. 安装`Redis`和[hiredis c++库](https://github.com/redis/hiredis)
 ## 项目构建
 ```bash
 git clone https://github.com/djdodsjsjx/ChatServer.git
@@ -93,3 +107,38 @@ void ChatServer::onMessage(const TcpConnectionPtr& conn,
 
 ### 群组聊天模块
 发送消息的用户想指定群组Id放松msg，这个消息会转发给其他群用户成员，若成员不在线加载至离线表格中。
+
+
+## Nginx 配置Tcp负载均衡
+负载均衡主要用户较大的并发量需求，若使用单个服务器很难实现较高的并发量，因此可以通过增加服务器的数量，分担不同服务器上的压力，本项目选用`Nginx`实现负载均衡功能。`Nginx`有如下三个特点
+1. 把客户端的请求按照负载算法分发到具体的业务服务器上。
+2. 能够与各个服务器保持心跳机制，检测服务器的故障。
+3. 可平滑扩展服务器数量。
+安装成功后`Nginx`后，编辑`/usr/local/nginx/conf/nginx.conf`
+```bash
+stream {
+   upstream MyServer {  # 监听的两个服务器   weight依次轮询的权重
+      server 127.0.0.1:6000 weight=1 max_fails=3 fail_timeout=30s;
+      server 127.0.0.1:6002 weight=1 max_fails=3 fail_timeout=40s;
+   }
+
+   server {
+      proxy_connect_timeout 1s;
+      listen 8000;  # 监听端口
+      proxy pass Myserver;
+      tcp_nodely on;
+   }
+}
+```
+完成配置后启动`/usr/local/nginx/sbin/nginx`或者平滑重启`/usr/local/nginx/sbin/nginx -s reload`。
+负载均衡测试，启动两个服务器，分别用两个客户端连接，可以轮询分配到不用的服务器中。
+![alt text](image/image.png)
+
+## 服务器中间件——使用redis发布-订阅解决跨服务器通信问题
+先前在单一的服务器中维护了一个连接的用户表，但是引入负载均衡模块，登录用户被分配至不同的服务器中，若各个服务器间相互通信，耦合度太高占用大量的socket资源，因此需要在多个服务器中维护一个中间件redis消息队列在能够实现跨服务器的通信问题的同时，解耦各个服务器，而不是各个服务器间相互通信，节省服务器管带资源。
+
+安装完`redis`后器，启动redis服务`redis-server`
+1. `subscribe channel`订阅指定通道
+2. `publish channel message`发布消息到指定通道
+功能测试，首先启动两个服务器1和2，再启动两个客户端分别轮询到各自服务器，两个服务器之间通过Redis消息队列进行消息的转发。
+![alt text](image/image-1.png)

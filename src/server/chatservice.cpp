@@ -3,6 +3,7 @@
 #include <muduo/base/Logging.h>
 #include <string>
 #include <vector>
+#include "redis.hpp"
 
 using namespace muduo;
 using namespace std;
@@ -17,6 +18,10 @@ ChatService::ChatService() {
     _msgHandlerMap.insert({ADD_GROUP_MSG, std::bind(&ChatService::addGroup, this, _1, _2, _3)});
     _msgHandlerMap.insert({GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)});
     _msgHandlerMap.insert({LOGOUT_MSG, std::bind(&ChatService::logout, this, _1, _2, _3)});
+
+    if (_redis.connect()) {
+        _redis.init_notify_handler(std::bind(&ChatService::redis_subscribe_message_handler, this, _1, _2));
+    }
 }
 
 // {"msgId":1002,"id":23,"password":"123456"}
@@ -45,6 +50,8 @@ void ChatService::loginHandler(const TcpConnectionPtr& conn, json& js, Timestamp
             response["errno"] = 0;
             response["id"] = user.getId();
             response["name"] = user.getName();
+
+            _redis.subscribe(id);  // 用户登录则订阅
 
             // 查询该用户是否存在离线消息
             vector<string> vec = _offlineMsgModel.query(id);
@@ -128,6 +135,7 @@ void ChatService::clientCloseExceptionHandler(const TcpConnectionPtr& conn) {
     }
 
     if (user.getId() != -1) {
+        _redis.unsubscribe(user.getId()); // 用户注销
         user.setState("offline");
         _userModel.updateState(user);  // 更新数据库
     }
@@ -145,6 +153,14 @@ void ChatService::oneChatHandler(const TcpConnectionPtr& conn, json& js, Timesta
             it->second->send(js.dump());
             return ;
         }
+    }
+
+    // 用户在其他服务器，publish消息到redis
+    User user = _userModel.query(toId);
+    if (user.getState() == "online")
+    {
+        _redis.publish(toId, js.dump());
+        return;
     }
 
     _offlineMsgModel.insert(toId, js.dump());
@@ -190,6 +206,13 @@ void ChatService::groupChat(const TcpConnectionPtr& conn, json& js, Timestamp ti
         if (it != _userConnMap.end()) {  // 转发群消息
             it->second->send(js.dump());
         } else {
+            // 查询toid是否在线
+            User user = _userModel.query(id);
+            if (user.getState() == "online")
+            {
+                // 向群组成员publish信息
+                _redis.publish(id, js.dump());
+            }
             _offlineMsgModel.insert(id, js.dump());  // 不在线保存至离线消息中
         }
     }
@@ -206,4 +229,19 @@ void ChatService::logout(const TcpConnectionPtr& conn, json& js, Timestamp time)
 
     user.setState("offline");
     _userModel.updateState(user);  // 更新数据库
+}
+
+// 订阅消息处理
+void ChatService::redis_subscribe_message_handler(int channel, string message)
+{
+    lock_guard<mutex> lock(_connMutex);
+    auto it = _userConnMap.find(channel);
+    if (it != _userConnMap.end())
+    {
+        it->second->send(message);
+        return;
+    }
+
+    //转储离线
+    _offlineMsgModel.insert(channel, message);
 }

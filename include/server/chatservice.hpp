@@ -10,6 +10,7 @@
 #include "offlinemessagemodel.hpp"
 #include "friendmodel.hpp"
 #include "group_model.hpp"
+#include "redis.hpp"
 
 using json = nlohmann::json;
 using namespace muduo;
@@ -54,6 +55,8 @@ public:
     void groupChat(const TcpConnectionPtr& conn, json& js, Timestamp time);
     // 用户退出
     void logout(const TcpConnectionPtr& conn, json& js, Timestamp time);
+    // 获取消息队列的数据
+    void redis_subscribe_message_handler(int channel, string message);
 private:
     ChatService();
     ChatService(const ChatService& ) = delete;
@@ -69,5 +72,6 @@ private:
     OfflineMsgModel _offlineMsgModel;
     FriendModel _friendModel;
     GroupModel _groupModel;
+    Redis _redis;
 };
 #endif // !CHATSERVICE_H
