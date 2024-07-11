@@ -2,9 +2,9 @@
 在Ubuntu20环境下基于muduo开发的集群聊天服务器。目前实现用户注册和登录接口。
 
 ## 运行环境
-1. 下载[muduo](https://github.com/chenshuo/muduo), [具体安装步骤](https://blog.csdn.net/QIANGWEIYUAN/article/details/89023980)
+1. 下载[muduo](https://drive.google.com/drive/folders/1SljNKGIAdXYYGKfbDJObrwZ6bqBVo_-V?usp=sharing), [具体安装步骤](https://blog.csdn.net/QIANGWEIYUAN/article/details/89023980)
 2. 安装`MySQL`, [安装步骤](https://blog.csdn.net/m0_53721382/article/details/128943162)
-3. 下载[nginx](...), 安装步骤如下：
+3. 下载[nginx](https://drive.google.com/drive/folders/1SljNKGIAdXYYGKfbDJObrwZ6bqBVo_-V?usp=sharing), 安装步骤如下：
    ```bash
    # 解压
    tar -axvf nginx-1.12.2.tar.gz
